@@ -1,15 +1,59 @@
 "use client"
 import React, { useState } from 'react';
 import { Heart, Mail, Lock, ArrowRight } from 'lucide-react';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { app } from '@/app/firebase/config'; 
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 const SignupPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');  // Add name state
+  const [error, setError] = useState('');
+  const Router = useRouter();
 
-  const handleSubmit = (e: { preventDefault: () => void; }) => {
+  const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
-    // Handle signup logic here
-    console.log('Signup:', { email, password });
+    
+    // Validate all fields
+    if (!email || !password || !name) {
+      setError('All fields are required');
+      return;
+    }
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    try {
+      // Check if email exists in users collection
+      const userDoc = doc(db, 'users', email);
+      const userSnap = await getDoc(userDoc);
+      
+      if (userSnap.exists()) {
+        setError('Email already registered');
+        return;
+      }
+
+      // Create authentication user
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Add user to Firestore
+      await setDoc(doc(db, 'users', email), {
+        uid: user.uid,
+        name: name,
+        email: email,
+        createdAt: new Date().toISOString()
+      });
+
+      console.log('Signup successful');
+      return Router.push("/profile");
+      
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError((error as any).message);
+    }
   };
 
   return (
@@ -28,13 +72,34 @@ const SignupPage = () => {
       {/* Signup Form */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name Input */}
+          <div className="space-y-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              Name
+            </label>
+            <div className="relative">
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="block w-full pl-3 pr-3 py-3 border border-gray-200 rounded-xl 
+                          focus:ring-2 focus:ring-pink-300 focus:border-pink-300 
+                          transition-all duration-200 ease-in-out
+                          placeholder-gray-400 text-black"
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+          </div>
+
           {/* Email Input */}
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 text-black left-0 pl-3 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-gray-400" />
               </div>
               <input
@@ -45,7 +110,7 @@ const SignupPage = () => {
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl 
                           focus:ring-2 focus:ring-pink-300 focus:border-pink-300 
                           transition-all duration-200 ease-in-out
-                          placeholder-gray-400"
+                          placeholder-gray-400 text-black"
                 placeholder="Enter your email"
                 required
               />
@@ -58,7 +123,7 @@ const SignupPage = () => {
               Password
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 text-black left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <input
@@ -69,12 +134,14 @@ const SignupPage = () => {
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl 
                           focus:ring-2 focus:ring-pink-300 focus:border-pink-300 
                           transition-all duration-200 ease-in-out
-                          placeholder-gray-400"
+                          placeholder-gray-400 text-black"
                 placeholder="Create a password"
                 required
               />
             </div>
           </div>
+
+          {error && <p className="text-red-500 text-xs italic">{error}</p>}
 
           {/* Submit Button */}
           <button

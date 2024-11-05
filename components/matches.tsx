@@ -1,7 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle } from 'lucide-react';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { app } from '@/app/firebase/config';
 
 interface Match {
   id: string;
@@ -11,38 +14,48 @@ interface Match {
   lastActive: string;
 }
 
-const matches: Match[] = [
-  {
-    id: '1',
-    name: 'Sarah Chen',
-    age: 28,
-    photo: '/api/placeholder/300/300',
-    lastActive: '3m ago'
-  },
-  {
-    id: '2',
-    name: 'Emily Parker',
-    age: 26,
-    photo: '/api/placeholder/300/300',
-    lastActive: '1h ago'
-  },
-  {
-    id: '3',
-    name: 'Jessica Wong',
-    age: 29,
-    photo: '/api/placeholder/300/300',
-    lastActive: '12m ago'
-  },
-  {
-    id: '4',
-    name: 'Amanda Liu',
-    age: 27,
-    photo: '/api/placeholder/300/300',
-    lastActive: 'Just now'
-  },
-];
+const MatchesPage = () => {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-export default function MatchesPage() {
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        if (!auth.currentUser) {
+          setError('Please sign in');
+          setLoading(false);
+          return;
+        }
+
+        const matchesQuery = query(
+          collection(db, 'matches'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+
+        const querySnapshot = await getDocs(matchesQuery);
+        const matchesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Match[];
+
+        setMatches(matchesData);
+      } catch (err) {
+        setError('Error fetching matches');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatches();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>{error}</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-pink-50 to-yellow-50">
@@ -92,9 +105,16 @@ export default function MatchesPage() {
               </div>
             </div>
           ))}
+          {matches.length === 0 && (
+            <p className="col-span-2 text-center text-gray-500">
+              No matches yet
+            </p>
+          )}
         </div>
       </div>
       
     </div>
   );
-}
+};
+
+export default MatchesPage;

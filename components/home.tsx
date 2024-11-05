@@ -1,27 +1,97 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { Heart, X, MessageCircle, User, Sparkles, MapPin, Coffee, Music } from 'lucide-react';
 import MatchesPage from './matches';
 import MessagesPage from './chatlist';
 import ProfileSetup from './profile';
+import { useRouter } from 'next/navigation';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where } from 'firebase/firestore';
+import { app } from '@/app/firebase/config';
+import { useAuth } from '@/app/context/AuthContext';
 
 interface Profile {
+  lastActive: any;
+  photo: any;
   id: string;
   name: string;
   age: number;
   location: string;
   bio: string;
   hobbies: string[];
-  image: string;
   distance: string;
 }
 
 const HomePage = () => {
+  const { userId, loading } = useAuth();
+  const [matches, setMatches] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [swipeDirection, setSwipeDirection] = useState<null | 'left' | 'right'>(null);
   const [startX, setStartX] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!userId) {
+      router.push('/signin');
+      return;
+    }
+
+    const fetchMatches = async () => {
+      const db = getFirestore(app);
+      // Use userId instead of currentUser.uid
+      const matchesQuery = query(
+        collection(db, 'matches'),
+        where('userId', '==', userId)
+      );
+      // ... rest of fetch logic
+    };
+
+    fetchMatches();
+  }, [userId]);
+
+  useEffect(() => {
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          // Get user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            console.log('User data:', userDoc.data());
+            console.log('User UID:', currentUser.uid);
+            setUser(userDoc.data());
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      } else {
+        console.log('No user logged in');
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUserId(user?.uid || null);
+      console.log(currentUserId);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Sample profiles data
   const profiles: Profile[] = [
@@ -32,8 +102,9 @@ const HomePage = () => {
       location: 'New York',
       bio: 'Just a coffee lover trying to find my matcha ☕️',
       hobbies: ['Travel', 'Music', 'Art'],
-      image: '/api/placeholder/400/500',
-      distance: '2 miles away'
+      photo: '/api/placeholder/400/500',
+      distance: '2 miles away',
+      lastActive : ""
     },
     {
       id: '2',
@@ -42,8 +113,9 @@ const HomePage = () => {
       location: 'Brooklyn',
       bio: 'Looking for someone to share memes with 😌',
       hobbies: ['Gaming', 'Netflix', 'Foodie'],
-      image: '/api/placeholder/400/500',
-      distance: '5 miles away'
+      photo: '/api/placeholder/400/500',
+      distance: '5 miles away',
+      lastActive : ""
     },
     // Add more profiles as needed
   ];
@@ -76,10 +148,31 @@ const HomePage = () => {
     setSwipeDirection(null);
   };
 
-  const handleLike = () => {
-    if (currentIndex < profiles.length - 1) {
+  const handleLike = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      
+      // Add to matches collection
+      await setDoc(doc(collection(db, 'matches'), `${currentUser.uid}_${profiles[currentIndex].id}`), {
+        userId: currentUser.uid,
+        matchedUserId: profiles[currentIndex].id,
+        name: profiles[currentIndex].name,
+        age: profiles[currentIndex].age,
+        photo: profiles[currentIndex].photo,
+        lastActive: profiles[currentIndex].lastActive,
+        timestamp: new Date().toISOString()
+      });
+
+      // Move to next profile
       setCurrentIndex(prev => prev + 1);
+    } catch (error) {
+      console.error('Error adding match:', error);
     }
+  };
+
+  const handleDislike = () => {
+    setCurrentIndex(prev => prev + 1);
   };
 
   const handleReject = () => {
@@ -87,6 +180,48 @@ const HomePage = () => {
       setCurrentIndex(prev => prev + 1);
     }
   };
+
+  const handleDragStart = (e: MouseEvent | TouchEvent) => {
+    const pageX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).pageX;
+    setDragStart({ x: pageX, y: 0 });
+  };
+
+  const handleDragEnd = async (e: MouseEvent | TouchEvent) => {
+    const pageX = 'touches' in e ? e.changedTouches[0].clientX : (e as MouseEvent).pageX;
+    const delta = pageX - dragStart.x;
+    
+    // Right swipe detected
+    if (delta > 100) {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        // Add to matches collection
+        await setDoc(doc(collection(db, 'matches'), `${currentUser.uid}_${profiles[currentIndex].id}`), {
+          userId: currentUser.uid,
+          matchedUserId: profiles[currentIndex].id,
+          name: profiles[currentIndex].name,
+          age: profiles[currentIndex].age,
+          photo: profiles[currentIndex].photo,
+          lastActive: profiles[currentIndex].lastActive,
+          timestamp: new Date().toISOString()
+        });
+
+        // Animate card off screen
+        if (cardRef.current) {
+          if (cardRef.current) {
+            cardRef.current.style.transform = 'translateX(100vw) rotate(30deg)';
+          }
+        }
+      } catch (error) {
+        console.error('Error adding match:', error);
+      }
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-pink-50 to-yellow-50">
@@ -107,18 +242,15 @@ const HomePage = () => {
           {/* Profile Card */}
           {profiles[currentIndex] && (
             <div 
-              className="relative bg-white rounded-3xl shadow-lg overflow-hidden transform transition-transform"
+              className="relative bg-white rounded-3xl shadow-lg overflow-hidden transform transition-transform transition-transform duration-300 ease-out"
               style={{
                 transform: `translateX(${offsetX}px) rotate(${offsetX * 0.02}deg)`,
               }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
             >
               {/* Profile Image */}
               <div className="relative aspect-[3/4]">
                 <img 
-                  src={profiles[currentIndex].image}
+                  src={profiles[currentIndex].photo}
                   alt={profiles[currentIndex].name}
                   className="w-full h-full object-cover"
                 />
@@ -178,7 +310,7 @@ const HomePage = () => {
 
         {activeTab == "matches"? <MatchesPage/> : null}
 
-        {activeTab == "profile"? <ProfileSetup/>: null}
+        {activeTab == "profile"? <ProfileSetup userId={currentUserId}/> : null}
 
 
       </div>

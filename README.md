@@ -55,6 +55,17 @@ opum/
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- Create a .env file same as given below 👎
+```
+NEXT_PUBLIC_API_KEY_FIREBASE=
+NEXT_PUBLIC_AUTH_DOMAIN=
+NEXT_PUBLIC_DATABASE_URL=
+NEXT_PUBLIC_PROJECT_ID=
+NEXT_PUBLIC_STORAGE_BUCKET=
+NEXT_PUBLIC_MESSAGING_SENDERID=
+NEXT_PUBLIC_APPID=
+NEXT_PUBLIC_measurementId=
+```
 
 ### Installation
 

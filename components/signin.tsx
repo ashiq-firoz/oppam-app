@@ -1,15 +1,39 @@
 "use client"
 import React, { useState } from 'react';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { app } from '@/app/firebase/config';
+import { useRouter } from 'next/navigation';
 import { Heart, Mail, Lock, ArrowRight } from 'lucide-react';
 
 const SigninPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter()
 
-  const handleSubmit = (e: { preventDefault: () => void; }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signin logic here
-    console.log('Signin:', { email, password });
+    setError('');
+    setLoading(true);
+
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const auth = getAuth(app);
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      router.push("/home")
+      console.log('Login successful');
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,7 +69,7 @@ const SigninPage = () => {
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl 
                           focus:ring-2 focus:ring-pink-300 focus:border-pink-300 
                           transition-all duration-200 ease-in-out
-                          placeholder-gray-400"
+                          placeholder-gray-400 text-black"
                 placeholder="Enter your email"
                 required
               />
@@ -69,7 +93,7 @@ const SigninPage = () => {
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl 
                           focus:ring-2 focus:ring-pink-300 focus:border-pink-300 
                           transition-all duration-200 ease-in-out
-                          placeholder-gray-400"
+                          placeholder-gray-400 text-black"
                 placeholder="Enter your password"
                 required
               />
@@ -86,9 +110,12 @@ const SigninPage = () => {
             </div>
           </div>
 
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
           {/* Submit Button */}
           <button
             type="submit"
+            disabled={loading}
             className="w-full bg-gradient-to-r from-pink-500 to-pink-400 
                      text-white font-semibold py-3 px-4 rounded-xl
                      hover:from-pink-600 hover:to-pink-500
@@ -96,7 +123,7 @@ const SigninPage = () => {
                      transform transition-all duration-200 ease-in-out
                      flex items-center justify-center space-x-2"
           >
-            <span>Sign In</span>
+            <span>{loading ? 'Signing in...' : 'Sign In'}</span>
             <ArrowRight className="w-5 h-5" />
           </button>
         </form>
