@@ -11,45 +11,22 @@ interface ChatPreview {
   time: string;
   unread: boolean;
   isOnline: boolean;
+  url : string;
 }
 
 const chats: ChatPreview[] = [
   {
     id: '1',
-    name: 'Sarah Chen',
+    name: 'Sharath',
     photo: '/api/placeholder/300/300',
     lastMessage: 'Would love to grab coffee sometime! ☕',
     time: '2m',
     unread: true,
-    isOnline: true
+    isOnline: true,
+    url : "/chats/1",
   },
-  {
-    id: '2',
-    name: 'Emily Parker',
-    photo: '/api/placeholder/300/300',
-    lastMessage: 'Thanks for the recommendation!',
-    time: '1h',
-    unread: false,
-    isOnline: true
-  },
-  {
-    id: '3',
-    name: 'Jessica Wong',
-    photo: '/api/placeholder/300/300',
-    lastMessage: 'How about Saturday afternoon?',
-    time: '3h',
-    unread: true,
-    isOnline: false
-  },
-  {
-    id: '4',
-    name: 'Amanda Liu',
-    photo: '/api/placeholder/300/300',
-    lastMessage: 'That sounds perfect! 😊',
-    time: '1d',
-    unread: false,
-    isOnline: false
-  },
+ 
+ 
 ];
 
 export default function MessagesPage() {
@@ -88,42 +65,45 @@ export default function MessagesPage() {
       <div className="max-w-2xl mx-auto">
         <div className="divide-y divide-gray-100">
           {chats.map((chat) => (
-            <div
+            <a
+              href={`${chat.url}`}
               key={chat.id}
-              className="flex items-center space-x-3 p-4 hover:bg-white/50 transition-colors cursor-pointer"
+              className="block" // Add block display to ensure proper anchor behavior
             >
-              {/* Profile Picture */}
-              <div className="relative">
-                <img
-                  src={chat.photo}
-                  alt={chat.name}
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-                {chat.isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
-                )}
-              </div>
-
-              {/* Message Preview */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900 truncate">
-                    {chat.name}
-                  </h3>
-                  <span className={`text-xs ${chat.unread ? 'text-pink-500 font-semibold' : 'text-gray-500'}`}>
-                    {chat.time}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <p className={`text-sm truncate ${chat.unread ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                    {chat.lastMessage}
-                  </p>
-                  {!chat.unread && (
-                    <Check className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <div className="flex items-center space-x-3 p-4 hover:bg-white/50 transition-colors cursor-pointer">
+                {/* Profile Picture */}
+                <div className="relative">
+                  <img
+                    src={chat.photo}
+                    alt={chat.name}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  {chat.isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
                   )}
                 </div>
+
+                {/* Message Preview */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 truncate">
+                      {chat.name}
+                    </h3>
+                    <span className={`text-xs ${chat.unread ? 'text-pink-500 font-semibold' : 'text-gray-500'}`}>
+                      {chat.time}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <p className={`text-sm truncate ${chat.unread ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      {chat.lastMessage}
+                    </p>
+                    {!chat.unread && (
+                      <Check className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </div>

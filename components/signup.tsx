@@ -11,7 +11,7 @@ const SignupPage = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');  // Add name state
   const [error, setError] = useState('');
-  const Router = useRouter();
+  const router = useRouter();
 
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
@@ -48,7 +48,8 @@ const SignupPage = () => {
       });
 
       console.log('Signup successful');
-      return Router.push("/profile");
+      localStorage.setItem('userId', userCredential.user.uid);
+      router.push("/profile");
       
     } catch (error) {
       console.error('Signup error:', error);

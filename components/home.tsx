@@ -1,18 +1,16 @@
 "use client"
-import React, { useState, useEffect, useRef, useId } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Heart, X, MessageCircle, User, Sparkles, MapPin, Coffee, Music } from 'lucide-react';
 import MatchesPage from './matches';
 import MessagesPage from './chatlist';
 import ProfileSetup from './profile';
 import { useRouter } from 'next/navigation';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { app } from '@/app/firebase/config';
-import { useAuth } from '@/app/context/AuthContext';
 
 interface Profile {
   lastActive: any;
-  photo: any;
+  photoURL: any;
   id: string;
   name: string;
   age: number;
@@ -22,9 +20,33 @@ interface Profile {
   distance: string;
 }
 
+interface Match {
+  id: string;
+  userId: string;
+  matchedUserId: string;
+  name: string;
+  age: number;
+  photo: string;
+  lastActive: string;
+  timestamp: string;
+}
+
 const HomePage = () => {
-  const { userId, loading } = useAuth();
-  const [matches, setMatches] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      router.push('/');
+      return;
+    }
+    setCurrentUserId(userId);
+    setLoading(false);
+  }, [router]);
+
+  const [matches, setMatches] = useState<Match[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [swipeDirection, setSwipeDirection] = useState<null | 'left' | 'right'>(null);
@@ -34,14 +56,16 @@ const HomePage = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
   const db = getFirestore(app);
-  const auth = getAuth(app);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const router = useRouter();
+  const [error, setError] = useState('');
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
+    setCurrentUserId(userId);
+    console.log(userId)
+    setLoading(false)
     if (!userId) {
-      router.push('/signin');
+      router.push('/login');
       return;
     }
 
@@ -53,73 +77,52 @@ const HomePage = () => {
         where('userId', '==', userId)
       );
       // ... rest of fetch logic
+    try {
+      const matchesSnap = await getDocs(matchesQuery);
+      const matchesData = matchesSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Match));
+      setMatches(matchesData);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+    }
     };
 
     fetchMatches();
-  }, [userId]);
+  }, [currentUserId]);
+
 
   useEffect(() => {
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        try {
-          // Get user data from Firestore
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            console.log('User data:', userDoc.data());
-            console.log('User UID:', currentUser.uid);
-            setUser(userDoc.data());
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
+    const fetchProfiles = async () => {
+      setLoading(true); // Set loading at start of fetch
+      try {
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+          router.push('/');
+          return;
         }
-      } else {
-        console.log('No user logged in');
-        setUser(null);
+
+        const db = getFirestore(app);
+        const profilesSnapshot = await getDocs(collection(db, 'profiles'));
+        
+        const profilesData = profilesSnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Profile))
+          .filter(profile => profile.id !== userId);
+
+        setProfiles(profilesData);
+      } catch (err) {
+        console.error('Error fetching profiles:', err);
+      } finally {
+        setLoading(false); // Clear loading in finally block
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setCurrentUserId(user?.uid || null);
-      console.log(currentUserId);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Sample profiles data
-  const profiles: Profile[] = [
-    {
-      id: '1',
-      name: 'Emma',
-      age: 24,
-      location: 'New York',
-      bio: 'Just a coffee lover trying to find my matcha ☕️',
-      hobbies: ['Travel', 'Music', 'Art'],
-      photo: '/api/placeholder/400/500',
-      distance: '2 miles away',
-      lastActive : ""
-    },
-    {
-      id: '2',
-      name: 'Alex',
-      age: 26,
-      location: 'Brooklyn',
-      bio: 'Looking for someone to share memes with 😌',
-      hobbies: ['Gaming', 'Netflix', 'Foodie'],
-      photo: '/api/placeholder/400/500',
-      distance: '5 miles away',
-      lastActive : ""
-    },
-    // Add more profiles as needed
-  ];
+    fetchProfiles();
+  }, [router]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setStartX(e.touches[0].clientX);
@@ -151,16 +154,16 @@ const HomePage = () => {
 
   const handleLike = async () => {
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
+     
+      if (!currentUserId) return;
       
       // Add to matches collection
-      await setDoc(doc(collection(db, 'matches'), `${currentUser.uid}_${profiles[currentIndex].id}`), {
-        userId: currentUser.uid,
+      await setDoc(doc(collection(db, 'matches'), `${currentUserId}_${profiles[currentIndex].id}`), {
+        userId: currentUserId,
         matchedUserId: profiles[currentIndex].id,
         name: profiles[currentIndex].name,
         age: profiles[currentIndex].age,
-        photo: profiles[currentIndex].photo,
+        photo: profiles[currentIndex].photoURL,
         lastActive: profiles[currentIndex].lastActive,
         timestamp: new Date().toISOString()
       });
@@ -194,16 +197,16 @@ const HomePage = () => {
     // Right swipe detected
     if (delta > 100) {
       try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) return;
+        
+        if (!currentUserId) return;
 
         // Add to matches collection
-        await setDoc(doc(collection(db, 'matches'), `${currentUser.uid}_${profiles[currentIndex].id}`), {
-          userId: currentUser.uid,
+        await setDoc(doc(collection(db, 'matches'), `${currentUserId}_${profiles[currentIndex].id}`), {
+          userId: currentUserId,
           matchedUserId: profiles[currentIndex].id,
           name: profiles[currentIndex].name,
           age: profiles[currentIndex].age,
-          photo: profiles[currentIndex].photo,
+          photo: profiles[currentIndex].photoURL,
           lastActive: profiles[currentIndex].lastActive,
           timestamp: new Date().toISOString()
         });
@@ -220,8 +223,62 @@ const HomePage = () => {
     }
   };
 
+  const handleRightClick = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent context menu
+    try {
+      if (!currentUserId) return;
+
+      await setDoc(doc(collection(db, 'matches'), `${currentUserId}_${profiles[currentIndex].id}`), {
+        userId: currentUserId,
+        matchedUserId: profiles[currentIndex].id,
+        name: profiles[currentIndex].name,
+        age: profiles[currentIndex].age,
+        photo: profiles[currentIndex].photoURL,
+        lastActive: profiles[currentIndex].lastActive,
+        timestamp: new Date().toISOString()
+      });
+
+      if (cardRef.current) {
+        cardRef.current.style.transform = 'translateX(100vw) rotate(30deg)';
+        setTimeout(() => {
+          setCurrentIndex(prev => prev + 1);
+          if (cardRef.current) {
+            cardRef.current.style.transform = '';
+          }
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error adding match:', error);
+    }
+  };
+
+  const handleLeftClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (cardRef.current) {
+      cardRef.current.style.transform = 'translateX(-100vw) rotate(-30deg)';
+      setTimeout(() => {
+        setCurrentIndex(prev => prev + 1);
+        if (cardRef.current) {
+          cardRef.current.style.transform = '';
+        }
+      }, 300);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+      </div>
+    );
   }
 
   return (
@@ -243,6 +300,13 @@ const HomePage = () => {
           {/* Profile Card */}
           {profiles[currentIndex] && (
             <div 
+              ref={cardRef}
+              onContextMenu={handleRightClick}
+              onClick={handleLeftClick}
+              // onTouchStart={handleDragStart}
+              // onTouchEnd={handleDragEnd}
+              // onMouseDown={handleDragStart}
+              // onMouseUp={handleDragEnd}
               className="relative bg-white rounded-3xl shadow-lg overflow-hidden transform transition-transform transition-transform duration-300 ease-out"
               style={{
                 transform: `translateX(${offsetX}px) rotate(${offsetX * 0.02}deg)`,
@@ -251,7 +315,7 @@ const HomePage = () => {
               {/* Profile Image */}
               <div className="relative aspect-[3/4]">
                 <img 
-                  src={profiles[currentIndex].photo}
+                  src={profiles[currentIndex].photoURL}
                   alt={profiles[currentIndex].name}
                   className="w-full h-full object-cover"
                 />
@@ -311,7 +375,7 @@ const HomePage = () => {
 
         {activeTab == "matches"? <MatchesPage/> : null}
 
-        {activeTab == "profile"? <ProfileSetup userId={currentUserId}/> : null}
+        {activeTab == "profile"? <ProfileSetup/>: null}
 
 
       </div>

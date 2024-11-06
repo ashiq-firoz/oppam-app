@@ -85,13 +85,13 @@ export default function ChatDetailPage() {
                 <div className="relative">
                   <img 
                     src="/api/placeholder/300/300" 
-                    alt="Sarah Chen" 
+                    alt="Sharath" 
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900">Sarah Chen</h2>
+                  <h2 className="font-semibold text-gray-900">Sharath</h2>
                   <p className="text-xs text-green-600">Online</p>
                 </div>
               </div>
