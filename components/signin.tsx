@@ -25,12 +25,13 @@ const SigninPage = () => {
 
     try {
       const auth = getAuth(app);
-      await signInWithEmailAndPassword(auth, email, password);
-      
-      router.push("/home")
-      console.log('Login successful');
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Store uid in localStorage
+      localStorage.setItem('userId', userCredential.user.uid);
+      router.push('/home');
+    } catch (error: any) {
+      setError(error.message);
+      localStorage.removeItem('userId'); // Clear on error
     } finally {
       setLoading(false);
     }

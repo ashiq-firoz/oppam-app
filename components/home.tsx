@@ -39,6 +39,7 @@ const HomePage = () => {
   const router = useRouter();
 
   useEffect(() => {
+    const userId = localStorage.getItem('userId');
     if (!userId) {
       router.push('/signin');
       return;

@@ -2,7 +2,7 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { Camera, Sparkles, MapPin, Heart, Music, Coffee, Palette } from 'lucide-react';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, getDocs, query, collection, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { app } from '@/app/firebase/config';
 import { getAuth } from 'firebase/auth';
@@ -36,10 +36,9 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ userId }) => {
   });
 
   useEffect(() => {
-    const auth = getAuth(app);
-    const user = auth.currentUser;
+    const userId = localStorage.getItem('userId');
 
-    if (!user) {
+    if (!userId) {
       router.push('/signin');
       return;
     }
@@ -48,9 +47,14 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ userId }) => {
       setLoading(true);
       try {
         const db = getFirestore(app);
-        const profileDoc = await getDoc(doc(db, 'profiles', user.uid));
+        const matchesQuery = query(
+          collection(db, 'profiles'),
+          where('userId', '==', userId)
+        );
+        const querySnapshot = await getDocs(matchesQuery);
         
-        if (profileDoc.exists()) {
+        if (!querySnapshot.empty) {
+          const profileDoc = querySnapshot.docs[0];
           const data = profileDoc.data();
           setFormData({
             name: data.name || '',

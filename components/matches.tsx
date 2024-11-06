@@ -20,6 +20,7 @@ const MatchesPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const userId = localStorage.getItem('userId');
     const fetchMatches = async () => {
       try {
         const auth = getAuth(app);
@@ -33,7 +34,7 @@ const MatchesPage = () => {
 
         const matchesQuery = query(
           collection(db, 'matches'),
-          where('userId', '==', auth.currentUser.uid)
+          where('userId', '==', userId)
         );
 
         const querySnapshot = await getDocs(matchesQuery);
