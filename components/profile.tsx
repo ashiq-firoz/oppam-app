@@ -452,12 +452,12 @@ const ProfileSetup: React.FC<ProfileSetupProps> = () => {
       {/* Pretty Logout Button */}
       <button
         onClick={handleLogout}
-        className="fixed bottom-6 left-6 bg-white hover:bg-gray-50 
-                  text-pink-500 font-medium py-2 px-4 rounded-full py-16
+        className="fixed bottom-16 left-6 bg-white hover:bg-gray-50 
+                  text-pink-500 font-medium py-2 px-4 rounded-full
                   shadow-lg hover:shadow-xl
                   transition-all duration-300 ease-in-out
                   flex items-center space-x-2
-                  border border-pink-100"
+                  border border-pink-100 z-50" // Increase z-index
       >
         <LogOut className="w-4 h-4" />
         <span>Logout</span>

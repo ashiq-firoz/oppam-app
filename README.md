@@ -21,6 +21,7 @@ Opum is a modern, responsive dating application built with Next.js, designed to 
 - **Styling**: Tailwind CSS
 - **Fonts**: Geist (Sans & Mono)
 - **Icons**: Lucide React
+- **Database**: Firebase
 
 ## 📦 Project Structure
 
