@@ -18,35 +18,13 @@ interface Message {
   timestamp: string;
 }
 
-const initialMessages: Message[] = [
-  {
-    id: '1',
-    text: "Hey! How's your day going?",
-    sender: 'other',
-    timestamp: '2:30 PM'
-  },
-  {
-    id: '2',
-    text: "It's going great! Just finished a really interesting project at work.",
-    sender: 'me',
-    timestamp: '2:31 PM'
-  },
-  {
-    id: '3',
-    text: "That sounds awesome! Want to grab coffee and tell me more?",
-    sender: 'other',
-    timestamp: '2:33 PM'
-  },
-  {
-    id: '4',
-    text: "Definitely! How about Saturday?",
-    sender: 'me',
-    timestamp: '2:34 PM'
-  }
-];
+const initialMessages: Message[] = [];
 
 export default function ChatDetailPage() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const storedMessages = localStorage.getItem('messages');
+    return storedMessages ? JSON.parse(storedMessages) : initialMessages;
+  });
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -62,10 +40,12 @@ export default function ChatDetailPage() {
       id: `${messages.length + 1}`,
       text: newMessage,
       sender: 'me',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toISOString()
     };
 
-    setMessages([...messages, message]);
+    const updatedMessages = [...messages, message];
+    setMessages(updatedMessages);
+    localStorage.setItem('messages', JSON.stringify(updatedMessages));
     setNewMessage('');
   };
 
@@ -137,7 +117,7 @@ export default function ChatDetailPage() {
                     : 'text-gray-500 text-left'}
                 `}
               >
-                {message.timestamp}
+                {new Date(message.timestamp).toLocaleTimeString()}
               </div>
             </div>
           </div>
